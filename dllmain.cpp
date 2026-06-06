@@ -9,6 +9,9 @@
 #include <sstream>
 #include <atomic>
 #include <winver.h>
+#include <fstream>
+#include <chrono>
+#include <iomanip>
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "Version.lib")
 
@@ -47,6 +50,21 @@ using CreateVertexShaderFn = HRESULT(*)(void*, size_t, ID3D11ClassLinkage*, ID3D
 using D3D11CreateDeviceAndSwapchainFn = HRESULT(WINAPI*)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, const D3D_FEATURE_LEVEL*, UINT, UINT, const DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain**, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**);
 CreateVertexShaderFn createvertexshader;
 D3D11CreateDeviceAndSwapchainFn d3d11createdeviceandswapchain;
+
+void AppendToLogFile(const char* fmt, ...)
+{
+	static std::ofstream file("LowerDamageLimits.log", std::ios::app);
+	char buffer[1024];
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buffer, sizeof(buffer), fmt, args);
+	va_end(args);
+	auto now = std::chrono::system_clock::now();
+	auto time = std::chrono::system_clock::to_time_t(now);
+	std::tm tm{};
+	localtime_s(&tm, &time);
+	file << '[' << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] " << buffer << std::endl;
+}
 
 bool PatchFormationShader(void* bytecode, size_t length)
 {
@@ -249,6 +267,14 @@ int GetBuildNumber(const char* path)
 template<typename T>
 T Read(uintptr_t addr)
 {
+	if (!addr || addr < 0x10000)
+	{
+		return (T)0x0;
+	}
+	if (IsBadReadPtr(reinterpret_cast<void*>(addr), sizeof(T)))
+	{
+		return (T)0x0;
+	}
 	return *reinterpret_cast<T*>(addr);
 }
 
@@ -276,9 +302,11 @@ DWORD WINAPI InitializeD3D(LPVOID)
 		FARPROC func = GetProcAddress(d3d, "D3D11CreateDeviceAndSwapChain");
 		MH_CreateHook((LPVOID)func, &HkD3D11CreateDeviceAndSwapchain, reinterpret_cast<LPVOID*>(&d3d11createdeviceandswapchain));
 		MH_EnableHook((LPVOID)func);
+		AppendToLogFile("Hooked D3D11CreateDeviceAndSwapChain.");
 		if (build < lowestsupportedversion || build > supportedversion)
 		{
-			MessageBoxA(nullptr, "Unknown/Incompatible game version.\nSome aspects of the mod have been disabled for compatibility.\n\nMain functionality of the mod is still active. \n\nIf your game still doesn't boot, you may have broken/invalid shaders.\nIf so, verify the integrity of your game files.", "LowerDamageLimits", MB_OK | MB_ICONINFORMATION);
+			AppendToLogFile("Unknown/Incompatible game version. Some aspects of the mod have been disabled for compatibility, main functionality of the mod is still active.");
+			AppendToLogFile("If your game still doesn't boot you may have broken/invalid shaders, if so, verify the integrity of your game files.");
 			return 0;
 		};
 		uint8_t* ignorelimits = reinterpret_cast<uint8_t*>(GetAddress(gta, limitsptr));
@@ -286,8 +314,11 @@ DWORD WINAPI InitializeD3D(LPVOID)
 		VirtualProtect(ignorelimits, 1, PAGE_EXECUTE_READWRITE, &old);
 		*ignorelimits = 1;
 		VirtualProtect(ignorelimits, 1, old, &old);
+		AppendToLogFile("Patched out flag.");
+		Sleep(3000);
 		uintptr_t stateaddr = GetAddress(gta, stateptr);
 		state = reinterpret_cast<int*>(ResolveRel32((stateaddr + 10)) + 1);
+		AppendToLogFile("Found game state.");
 	}
 	do
 	{
@@ -296,17 +327,27 @@ DWORD WINAPI InitializeD3D(LPVOID)
 	uintptr_t world = GetAddress(gta, worldptr);
 	uintptr_t me = Read<INT64>(world + 0x8);
 	playerinfoptr = Read<INT64>(me + 0x10A8);
+	AppendToLogFile("Found CPlayerInfo.");
 	do
 	{
 		Sleep(500);
 		uintptr_t vehicle = Read<INT64>(me + 0xD10);
-		if (vehicle && vehicle != 0 && vehicle != lastvehicle) 
+		if (!vehicle || vehicle < 0x10000)
 		{
-			lastvehicle = vehicle;
-			uintptr_t handling = Read<INT64>(vehicle + 0x960);
-			float deformmult = Read<FLOAT>(handling + 0xF8);
-			Write<FLOAT>(handling + 0xF8, deformmult + 1.0);
+			continue;
 		}
+		if (vehicle == lastvehicle)
+		{
+			continue;
+		}
+		lastvehicle = vehicle;
+		uintptr_t handling = Read<INT64>(vehicle + 0x960);
+		if (!handling || handling < 0x10000)
+		{
+			continue;
+		}
+		float deformmult = Read<FLOAT>(handling + 0xF8);
+		Write<FLOAT>(handling + 0xF8, deformmult + 1.0);
 	} while (run);
 	return 0;
 }
