@@ -8,7 +8,9 @@
 #include <MinHook.h>
 #include <sstream>
 #include <atomic>
+#include <winver.h>
 #pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "Version.lib")
 
 #pragma comment(linker, "/export:D3DPERF_BeginEvent=ogd3d9.D3DPERF_BeginEvent,@1")
 #pragma comment(linker, "/export:D3DPERF_EndEvent=ogd3d9.D3DPERF_EndEvent,@2")
@@ -27,6 +29,9 @@
 #pragma comment(linker, "/export:Direct3DShaderValidatorCreate9=ogd3d9.Direct3DShaderValidatorCreate9,@17")
 #pragma comment(linker, "/export:PSGPError=ogd3d9.PSGPError,@18")
 #pragma comment(linker, "/export:PSGPSampleTexture=ogd3d9.PSGPSampleTexture,@19")
+
+int supportedversion = 3788;
+int lowestsupportedversion = 3786;
 
 int loadorder = 0;
 std::string limitsptr = "?? 48 85 C9 ?? 07 33 D2 E8 ?? DD E8 ?? 48 8D ??";
@@ -215,6 +220,32 @@ uintptr_t ResolveRel32(uintptr_t addr)
 	return addr + 4 + rel;
 }
 
+int GetBuildNumber(const char* path)
+{
+	DWORD dummy = 0;
+	DWORD size = GetFileVersionInfoSizeA(path, &dummy);
+	if (!size)
+	{
+		return 0;
+	}
+	std::vector<BYTE> data(size);
+	if (!GetFileVersionInfoA(path, 0, size, data.data()))
+	{
+		return 0;
+	}
+	VS_FIXEDFILEINFO* ffi = nullptr;
+	UINT len = 0;
+	if (!VerQueryValueA(data.data(), "\\", (LPVOID*)&ffi, &len))
+	{
+		return 0;
+	}
+	DWORD major = HIWORD(ffi->dwFileVersionMS);
+	DWORD minor = LOWORD(ffi->dwFileVersionMS);
+	DWORD build = HIWORD(ffi->dwFileVersionLS);
+	DWORD revision = LOWORD(ffi->dwFileVersionLS);
+	return static_cast<int>(build);
+}
+
 template<typename T>
 T Read(uintptr_t addr)
 {
@@ -239,11 +270,17 @@ DWORD WINAPI InitializeD3D(LPVOID)
 	}
 	HMODULE d3d = GetModuleHandleA("d3d11.dll");
 	HMODULE gta = GetModuleHandleA("GTA5.exe");
+	int build = GetBuildNumber("GTA5.exe");
 	if (d3d)
 	{
 		FARPROC func = GetProcAddress(d3d, "D3D11CreateDeviceAndSwapChain");
 		MH_CreateHook((LPVOID)func, &HkD3D11CreateDeviceAndSwapchain, reinterpret_cast<LPVOID*>(&d3d11createdeviceandswapchain));
 		MH_EnableHook((LPVOID)func);
+		if (build < lowestsupportedversion || build > supportedversion)
+		{
+			MessageBoxA(nullptr, "Unknown/Incompatible game version.\nSome aspects of the mod have been disabled for compatibility.\n\nMain functionality of the mod is still active. \n\nIf your game still doesn't boot, you may have broken/invalid shaders.\nIf so, verify the integrity of your game files.", "LowerDamageLimits", MB_OK | MB_ICONINFORMATION);
+			return 0;
+		};
 		uint8_t* ignorelimits = reinterpret_cast<uint8_t*>(GetAddress(gta, limitsptr));
 		DWORD old;
 		VirtualProtect(ignorelimits, 1, PAGE_EXECUTE_READWRITE, &old);
