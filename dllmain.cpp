@@ -1,4 +1,7 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
+
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "pch.h"
 #include <Windows.h>
 #include <d3d11.h>
@@ -15,39 +18,44 @@
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "Version.lib")
 
-#pragma comment(linker, "/export:D3DPERF_BeginEvent=ogd3d9.D3DPERF_BeginEvent,@1")
-#pragma comment(linker, "/export:D3DPERF_EndEvent=ogd3d9.D3DPERF_EndEvent,@2")
-#pragma comment(linker, "/export:D3DPERF_GetStatus=ogd3d9.D3DPERF_GetStatus,@3")
-#pragma comment(linker, "/export:D3DPERF_QueryRepeatFrame=ogd3d9.D3DPERF_QueryRepeatFrame,@4")
-#pragma comment(linker, "/export:D3DPERF_SetMarker=ogd3d9.D3DPERF_SetMarker,@5")
-#pragma comment(linker, "/export:D3DPERF_SetOptions=ogd3d9.D3DPERF_SetOptions,@6")
-#pragma comment(linker, "/export:D3DPERF_SetRegion=ogd3d9.D3DPERF_SetRegion,@7")
-#pragma comment(linker, "/export:DebugSetLevel=ogd3d9.DebugSetLevel,@8")
-#pragma comment(linker, "/export:DebugSetMute=ogd3d9.DebugSetMute,@9")
-#pragma comment(linker, "/export:Direct3D9EnableMaximizedWindowedModeShim=ogd3d9.Direct3D9EnableMaximizedWindowedModeShim,@10")
-#pragma comment(linker, "/export:Direct3DCreate9=ogd3d9.Direct3DCreate9,@11")
-#pragma comment(linker, "/export:Direct3DCreate9Ex=ogd3d9.Direct3DCreate9Ex,@12")
-#pragma comment(linker, "/export:Direct3DCreate9On12=ogd3d9.Direct3DCreate9On12,@13")
-#pragma comment(linker, "/export:Direct3DCreate9On12Ex=ogd3d9.Direct3DCreate9On12Ex,@16")
-#pragma comment(linker, "/export:Direct3DShaderValidatorCreate9=ogd3d9.Direct3DShaderValidatorCreate9,@17")
-#pragma comment(linker, "/export:PSGPError=ogd3d9.PSGPError,@18")
-#pragma comment(linker, "/export:PSGPSampleTexture=ogd3d9.PSGPSampleTexture,@19")
+#pragma comment(linker, "/export:@16=ogd3d9.#16")
+#pragma comment(linker, "/export:@17=ogd3d9.#17")
+#pragma comment(linker, "/export:@18=ogd3d9.#18")
+#pragma comment(linker, "/export:@19=ogd3d9.#19")
+#pragma comment(linker, "/export:Direct3DCreate9On12=ogd3d9.Direct3DCreate9On12,@20")
+#pragma comment(linker, "/export:Direct3DCreate9On12Ex=ogd3d9.Direct3DCreate9On12Ex,@21")
+#pragma comment(linker, "/export:@22=ogd3d9.#22")
+#pragma comment(linker, "/export:@23=ogd3d9.#23")
+#pragma comment(linker, "/export:Direct3DShaderValidatorCreate9=ogd3d9.Direct3DShaderValidatorCreate9,@24")
+#pragma comment(linker, "/export:PSGPError=ogd3d9.PSGPError,@25")
+#pragma comment(linker, "/export:PSGPSampleTexture=ogd3d9.PSGPSampleTexture,@26")
+#pragma comment(linker, "/export:D3DPERF_BeginEvent=ogd3d9.D3DPERF_BeginEvent,@27")
+#pragma comment(linker, "/export:D3DPERF_EndEvent=ogd3d9.D3DPERF_EndEvent,@28")
+#pragma comment(linker, "/export:D3DPERF_GetStatus=ogd3d9.D3DPERF_GetStatus,@29")
+#pragma comment(linker, "/export:D3DPERF_QueryRepeatFrame=ogd3d9.D3DPERF_QueryRepeatFrame,@30")
+#pragma comment(linker, "/export:D3DPERF_SetMarker=ogd3d9.D3DPERF_SetMarker,@31")
+#pragma comment(linker, "/export:D3DPERF_SetOptions=ogd3d9.D3DPERF_SetOptions,@32")
+#pragma comment(linker, "/export:D3DPERF_SetRegion=ogd3d9.D3DPERF_SetRegion,@33")
+#pragma comment(linker, "/export:DebugSetLevel=ogd3d9.DebugSetLevel,@34")
+#pragma comment(linker, "/export:DebugSetMute=ogd3d9.DebugSetMute,@35")
+#pragma comment(linker, "/export:Direct3D9EnableMaximizedWindowedModeShim=ogd3d9.Direct3D9EnableMaximizedWindowedModeShim,@36")
+#pragma comment(linker, "/export:Direct3DCreate9=ogd3d9.Direct3DCreate9,@37")
+#pragma comment(linker, "/export:Direct3DCreate9Ex=ogd3d9.Direct3DCreate9Ex,@38")
 
 int supportedversion = 3788;
 int lowestsupportedversion = 3786;
 
 int loadorder = 0;
 std::string limitsptr = "?? 48 85 C9 ?? 07 33 D2 E8 ?? DD E8 ?? 48 8D ??";
-std::string worldptr = "48 8B ?? F7 7E 68 ?? 48 ?? 58 08 ?? 85 DB 74 ??";
-std::string stateptr = "81 39 ?? 6D FF AF ?? 20 83 3D 35 ?? DA ?? 05 75 17 ?? 42";
 int* state;
 uintptr_t playerinfoptr = 0;
-std::atomic<bool> run = true;
-uintptr_t lastvehicle = 0;
 
 using DisassembleFn = HRESULT(*)(void*, size_t, int, void*, void*);
+using AssembleFn = HRESULT(*)(LPCSTR, SIZE_T, LPCSTR, const D3D_SHADER_MACRO*, ID3DInclude*, UINT, ID3DBlob**, ID3DBlob**);
 using CreateVertexShaderFn = HRESULT(*)(void*, size_t, ID3D11ClassLinkage*, ID3D11VertexShader**);
 using D3D11CreateDeviceAndSwapchainFn = HRESULT(WINAPI*)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, const D3D_FEATURE_LEVEL*, UINT, UINT, const DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain**, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**);
+using UpdateSubresourceFn = void(WINAPI*)(ID3D11DeviceContext*, ID3D11Resource*, UINT, const D3D11_BOX*, const void*, UINT, UINT);
+UpdateSubresourceFn updatesubresource;
 CreateVertexShaderFn createvertexshader;
 D3D11CreateDeviceAndSwapchainFn d3d11createdeviceandswapchain;
 
@@ -66,38 +74,70 @@ void AppendToLogFile(const char* fmt, ...)
 	file << '[' << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] " << buffer << std::endl;
 }
 
-bool PatchFormationShader(void* bytecode, size_t length)
+bool PatchFormationShader(void* bytecode, size_t length, std::vector<uint8_t>& out)
 {
+	HMODULE compiler = GetModuleHandleA("d3dcompiler_47.dll");
+	auto disassemble = (DisassembleFn)GetProcAddress(compiler, "D3DDisassemble");
+	auto assemble = (AssembleFn)GetProcAddress(compiler, "D3DAssemble");
+	if (!disassemble || !assemble)
+	{
+		return false;
+	}
 	ID3DBlob* disasm = nullptr;
-	DisassembleFn disassemble = (DisassembleFn)GetProcAddress(GetModuleHandleA("d3dcompiler_47.dll"), "D3DDisassemble");
-	if (FAILED(disassemble(bytecode, length, 0, nullptr, &disasm)))
+	if (FAILED(disassemble(bytecode, length, 0, nullptr, &disasm)) || !disasm)
 	{
 		return false;
 	}
-	const char* text = static_cast<const char*>(disasm->GetBufferPointer());
-	const char* pattern = "div r3.w, r3.w, cb11[0].x\n  min r3.w, r3.w, l(1.000000)";
-	const char* found = strstr(text, pattern);
+	std::string text = static_cast<const char*>(disasm->GetBufferPointer());
 	disasm->Release();
-	if (!found)
+	if (text.find("div r3.w, r3.w, cb11[0].x") == std::string::npos || text.find("min r3.w, r3.w, l(1.000000)") == std::string::npos)
 	{
 		return false;
 	}
-	uint8_t* data = (uint8_t*)bytecode;
-	for (size_t i = 0; i <= length - 16; i += 4)
+	//remove door deformation clamp
+	size_t minpos = text.find("min r3.w, r3.w, l(1.000000)");
+	if (minpos != std::string::npos)
 	{
-		if (*(uint32_t*)(data + i) == 0x00000003 && *(uint32_t*)(data + i + 4) == 0x00004001 && *(uint32_t*)(data + i + 8) == 0x3F800000 && *(uint32_t*)(data + i + 12) == 0x07000038)
-		{
-			*(uint32_t*)(data + i + 8) = 0x4f000000;
-			return true;
-		}
+		text.replace(minpos, strlen("min r3.w, r3.w, l(1.000000)"), "min r3.w, r3.w, l(2147483647.0)");
 	}
-	return false;
+	//remove wheel deformation limits
+	size_t pos = 0;
+	while ((pos = text.find("div_sat", pos)) != std::string::npos)
+	{
+		text.replace(pos, 7, "div    ");
+		pos += 7;
+	}
+	//disable interior intrusion clamping
+	size_t lt1 = text.find("lt r3.x, l(0.000000), cb11[2].w");
+	if (lt1 != std::string::npos)
+	{
+		text.replace(lt1, strlen("lt r3.x, l(0.000000), cb11[2].w"), "mov r3.x, l(0)        ");
+	}
+	size_t lt2 = text.find("lt r3.x, l(0.000000), cb11[3].w");
+	if (lt2 != std::string::npos)
+	{
+		text.replace(lt2, strlen("lt r3.x, l(0.000000), cb11[3].w"), "mov r3.x, l(0)        ");
+	}
+	ID3DBlob* assembled = nullptr;
+	ID3DBlob* errors = nullptr;
+	HRESULT hr = assemble(text.c_str(), text.size(), nullptr, nullptr, nullptr, 0, &assembled, &errors);
+	if (errors)
+	{
+		errors->Release();
+	}
+	if (FAILED(hr) || !assembled)
+	{
+		return false;
+	}
+	out.assign((uint8_t*)assembled->GetBufferPointer(), (uint8_t*)assembled->GetBufferPointer() + assembled->GetBufferSize());
+	assembled->Release();
+	return true;
 }
 
 HRESULT HkCreateVertexShader(void* bytecode, size_t size, ID3D11ClassLinkage* linkage, ID3D11VertexShader** shader)
 {
-	std::vector<uint8_t> patched((uint8_t*)bytecode, (uint8_t*)bytecode + size);
-	if (PatchFormationShader(patched.data(), patched.size()))
+	std::vector<uint8_t> patched;
+	if (PatchFormationShader(bytecode, size, patched))
 	{
 		return createvertexshader(patched.data(), patched.size(), linkage, shader);
 	}
@@ -105,11 +145,35 @@ HRESULT HkCreateVertexShader(void* bytecode, size_t size, ID3D11ClassLinkage* li
 	return createvertexshader(bytecode, size, linkage, shader);
 }
 
+void WINAPI HkUpdateSubresource(ID3D11DeviceContext* ctx, ID3D11Resource* resource, UINT subresource, const D3D11_BOX* box, const void* data, UINT rowpitch, UINT depthpitch)
+{
+	if (data && rowpitch == 72)
+	{
+		float boundradius = *(float*)data;
+		float damagemultiplier = *((float*)data + 1);
+		if (boundradius > 0.1f && boundradius < 100.0f && damagemultiplier > 0.0f)
+		{
+			std::vector<uint8_t> patched(72);
+			memcpy(patched.data(), data, 72);
+			*((float*)patched.data() + 0) *= 0.005f;
+			*((float*)patched.data() + 1) *= 450.0f;
+			updatesubresource(ctx, resource, subresource, box, patched.data(), rowpitch, depthpitch);
+			return;
+		}
+	}
+	updatesubresource(ctx, resource, subresource, box, data, rowpitch, depthpitch);
+}
+
 HRESULT WINAPI HkD3D11CreateDeviceAndSwapchain(IDXGIAdapter* adapter, D3D_DRIVER_TYPE type, HMODULE software, UINT flags, const D3D_FEATURE_LEVEL* featurelevel, UINT featurelevels, UINT sdk, const DXGI_SWAP_CHAIN_DESC* swapchaindesc, IDXGISwapChain** swapchain, ID3D11Device** device, D3D_FEATURE_LEVEL* featurelevel2, ID3D11DeviceContext** devicecontext)
 {
 	HRESULT dev = d3d11createdeviceandswapchain(adapter, type, software, flags, featurelevel, featurelevels, sdk, swapchaindesc, swapchain, device, featurelevel2, devicecontext);;
 	if (dev)
 	{
+		ID3D11DeviceContext* ctx = nullptr;
+		(*device)->GetImmediateContext(&ctx);
+		void** ctxvtable = *reinterpret_cast<void***>(ctx);
+		MH_CreateHook(ctxvtable[48], &HkUpdateSubresource, reinterpret_cast<void**>(&updatesubresource));
+		MH_EnableHook(ctxvtable[48]);
 		void** vtable = *reinterpret_cast<void***>(dev);
 		MH_CreateHook(vtable[12], HkCreateVertexShader, reinterpret_cast<void**>(&createvertexshader));
 		MH_EnableHook(vtable[12]);
@@ -267,14 +331,6 @@ int GetBuildNumber(const char* path)
 template<typename T>
 T Read(uintptr_t addr)
 {
-	if (!addr || addr < 0x10000)
-	{
-		return (T)0x0;
-	}
-	if (IsBadReadPtr(reinterpret_cast<void*>(addr), sizeof(T)))
-	{
-		return (T)0x0;
-	}
 	return *reinterpret_cast<T*>(addr);
 }
 
@@ -282,6 +338,16 @@ template<typename T>
 void Write(uintptr_t addr, T value)
 {
 	*reinterpret_cast<T*>(addr) = value;
+}
+
+uintptr_t Rip(uintptr_t addr)
+{
+	int32_t rel = *reinterpret_cast<int32_t*>(addr + 3);
+	if (rel < 0)
+	{
+		return addr + 7 + static_cast<uint32_t>(rel);
+	}
+	return addr + 7 + rel;
 }
 
 DWORD WINAPI InitializeD3D(LPVOID)
@@ -315,40 +381,7 @@ DWORD WINAPI InitializeD3D(LPVOID)
 		*ignorelimits = 1;
 		VirtualProtect(ignorelimits, 1, old, &old);
 		AppendToLogFile("Patched out flag.");
-		Sleep(3000);
-		uintptr_t stateaddr = GetAddress(gta, stateptr);
-		state = reinterpret_cast<int*>(ResolveRel32((stateaddr + 10)) + 1);
-		AppendToLogFile("Found game state.");
 	}
-	do
-	{
-		Sleep(500);
-	} while (*state != 0);
-	uintptr_t world = GetAddress(gta, worldptr);
-	uintptr_t me = Read<INT64>(world + 0x8);
-	playerinfoptr = Read<INT64>(me + 0x10A8);
-	AppendToLogFile("Found CPlayerInfo.");
-	do
-	{
-		Sleep(500);
-		uintptr_t vehicle = Read<INT64>(me + 0xD10);
-		if (!vehicle || vehicle < 0x10000)
-		{
-			continue;
-		}
-		if (vehicle == lastvehicle)
-		{
-			continue;
-		}
-		lastvehicle = vehicle;
-		uintptr_t handling = Read<INT64>(vehicle + 0x960);
-		if (!handling || handling < 0x10000)
-		{
-			continue;
-		}
-		float deformmult = Read<FLOAT>(handling + 0xF8);
-		Write<FLOAT>(handling + 0xF8, deformmult + 1.0);
-	} while (run);
 	return 0;
 }
 
