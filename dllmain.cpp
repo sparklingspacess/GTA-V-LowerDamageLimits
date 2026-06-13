@@ -155,8 +155,18 @@ void WINAPI HkUpdateSubresource(ID3D11DeviceContext* ctx, ID3D11Resource* resour
 		{
 			std::vector<uint8_t> patched(72);
 			memcpy(patched.data(), data, 72);
-			*((float*)patched.data() + 0) *= 0.005f;
-			*((float*)patched.data() + 1) *= 450.0f;
+			float& br = *((float*)patched.data() + 0);
+			float& dm = *((float*)patched.data() + 1);
+			br *= 2.0f;
+			if (br > 9999999)
+			{
+				br = 9999999;
+			}
+			dm *= 120.0f;
+			if (dm > 9999999)
+			{
+				dm = 9999999;
+			}
 			updatesubresource(ctx, resource, subresource, box, patched.data(), rowpitch, depthpitch);
 			return;
 		}
